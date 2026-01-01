@@ -113,7 +113,7 @@ class OmniSR(nn.Module):
         self.num_feat = num_feat
         self.scale = up_scale
 
-        self.supports_fp16 = True  # TODO: Test this
+        self.supports_fp16 = True
         self.supports_bfp16 = True
         self.min_size_restriction = 16
 
