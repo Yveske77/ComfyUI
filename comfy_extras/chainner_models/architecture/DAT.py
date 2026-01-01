@@ -1015,11 +1015,15 @@ class DAT(nn.Module):
             state_dict["layers.0.blocks.0.ffn.fc1.weight"].shape[0] / embed_dim
         )
 
-        # TODO: could actually count the layers, but this should do
-        if "layers.0.conv.4.weight" in state_keys:
+        # Count the number of convolution layers in the first residual group to determine the connection type
+        resi_connection = "1conv"
+        conv_weight_count = 0
+        for key in state_keys:
+            if key.startswith("layers.0.conv.") and key.endswith(".weight"):
+                conv_weight_count += 1
+
+        if conv_weight_count > 1:
             resi_connection = "3conv"
-        else:
-            resi_connection = "1conv"
 
         if "layers.0.blocks.2.attn.attn_mask_0" in state_keys:
             attn_mask_0_x, attn_mask_0_y, attn_mask_0_z = state_dict[
