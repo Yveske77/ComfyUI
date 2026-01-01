@@ -119,12 +119,16 @@ class SelfAttentionGuidance:
             cond_or_uncond = extra_options["cond_or_uncond"]
             b = q.shape[0] // len(cond_or_uncond)
             if 1 in cond_or_uncond:
-                uncond_index = cond_or_uncond.index(1)
                 # do the entire attention operation, but save the attention scores to attn_scores
                 (out, sim) = attention_basic_with_sim(q, k, v, heads=heads)
-                # when using a higher batch size, I BELIEVE the result batch dimension is [uc1, ... ucn, c1, ... cn]
                 n_slices = heads * b
-                attn_scores = sim[n_slices * uncond_index:n_slices * (uncond_index+1)]
+                for i in range(len(cond_or_uncond)):
+                    if cond_or_uncond[i] == 1:
+                        if attn_scores is None:
+                            attn_scores = sim[n_slices * i:n_slices * (i+1)]
+                        else:
+                            attn_scores = torch.cat((attn_scores, sim[n_slices * i:n_slices * (i+1)]), dim=0)
+
                 return out
             else:
                 return optimized_attention(q, k, v, heads=heads)
@@ -132,6 +136,7 @@ class SelfAttentionGuidance:
         def post_cfg_function(args):
             nonlocal attn_scores
             uncond_attn = attn_scores
+            attn_scores = None
 
             sag_scale = scale
             sag_sigma = blur_sigma
