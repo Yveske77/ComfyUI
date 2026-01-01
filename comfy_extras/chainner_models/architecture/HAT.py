@@ -982,11 +982,27 @@ class HAT(nn.Module):
             / embed_dim
         )
 
-        # TODO: could actually count the layers, but this should do
-        if "layers.0.conv.4.weight" in state_keys:
-            resi_connection = "3conv"
-        else:
+        # check the number of layers in the residual connection
+        if "layers.0.conv.weight" in state_keys:
             resi_connection = "1conv"
+        else:
+            max_conv_index = -1
+            prefix = "layers.0.conv."
+            suffix = ".weight"
+            for key in state_keys:
+                if key.startswith(prefix) and key.endswith(suffix):
+                    # extract index between prefix and suffix
+                    middle = key[len(prefix) : -len(suffix)]
+                    if middle.isdigit():
+                        max_conv_index = max(max_conv_index, int(middle))
+
+            if max_conv_index == 4:
+                resi_connection = "3conv"
+            elif max_conv_index == -1:
+                resi_connection = "identity"
+            else:
+                # Fallback to 1conv if structure is unknown but not empty
+                resi_connection = "1conv"
 
         window_size = int(math.sqrt(self.state["relative_position_index_SA"].shape[0]))
 
