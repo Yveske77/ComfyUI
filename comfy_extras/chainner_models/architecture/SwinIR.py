@@ -941,11 +941,15 @@ class SwinIR(nn.Module):
             / embed_dim
         )
 
-        # TODO: could actually count the layers, but this should do
-        if "layers.0.conv.4.weight" in state_keys:
+        # count the layers to determine resi_connection type
+        resi_connection = "1conv"
+        conv_layer_count = 0
+        for key in state_keys:
+            if key.startswith("layers.0.conv.") and key.endswith(".weight"):
+                conv_layer_count += 1
+
+        if conv_layer_count == 3:
             resi_connection = "3conv"
-        else:
-            resi_connection = "1conv"
 
         window_size = int(
             math.sqrt(
