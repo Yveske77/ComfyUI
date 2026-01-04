@@ -1147,16 +1147,25 @@ class LatentComposite:
         else:
             samples_from = samples_from[:,:,:samples_to.shape[2] - y, :samples_to.shape[3] - x]
             mask = torch.ones_like(samples_from)
-            for t in range(feather):
+            if feather > 0:
+                ramp = torch.linspace(1.0/feather, 1.0, feather, dtype=mask.dtype, device=mask.device)
+
                 if y != 0:
-                    mask[:,:,t:1+t,:] *= ((1.0/feather) * (t + 1))
+                    f = min(feather, mask.shape[2])
+                    mask[:,:,:f,:] *= ramp[:f].view(1, 1, -1, 1)
 
                 if y + samples_from.shape[2] < samples_to.shape[2]:
-                    mask[:,:,mask.shape[2] -1 -t: mask.shape[2]-t,:] *= ((1.0/feather) * (t + 1))
+                    f = min(feather, mask.shape[2])
+                    mask[:,:,-f:,:] *= torch.flip(ramp[:f], [0]).view(1, 1, -1, 1)
+
                 if x != 0:
-                    mask[:,:,:,t:1+t] *= ((1.0/feather) * (t + 1))
+                    f = min(feather, mask.shape[3])
+                    mask[:,:,:,:f] *= ramp[:f].view(1, 1, 1, -1)
+
                 if x + samples_from.shape[3] < samples_to.shape[3]:
-                    mask[:,:,:,mask.shape[3]- 1 - t: mask.shape[3]- t] *= ((1.0/feather) * (t + 1))
+                    f = min(feather, mask.shape[3])
+                    mask[:,:,:,-f:] *= torch.flip(ramp[:f], [0]).view(1, 1, 1, -1)
+
             rev_mask = torch.ones_like(mask) - mask
             s[:,:,y:y+samples_from.shape[2],x:x+samples_from.shape[3]] = samples_from[:,:,:samples_to.shape[2] - y, :samples_to.shape[3] - x] * mask + s[:,:,y:y+samples_from.shape[2],x:x+samples_from.shape[3]] * rev_mask
         samples_out["samples"] = s
