@@ -239,13 +239,13 @@ def efficient_dot_product_attention(
             value=value,
         )
     
-    # TODO: maybe we should use torch.empty_like(query) to allocate storage in-advance,
-    # and pass slices to be mutated, instead of torch.cat()ing the returned slices
-    res = torch.cat([
-        compute_query_chunk_attn(
-            query=get_query_chunk(i * query_chunk_size),
+    res = torch.empty_like(query)
+    for i in range(math.ceil(q_tokens / query_chunk_size)):
+        chunk_idx = i * query_chunk_size
+        chunk = compute_query_chunk_attn(
+            query=get_query_chunk(chunk_idx),
             key_t=key_t,
             value=value,
-        ) for i in range(math.ceil(q_tokens / query_chunk_size))
-    ], dim=1)
+        )
+        res[:, chunk_idx:chunk_idx + chunk.shape[1], :] = chunk
     return res
