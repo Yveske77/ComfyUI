@@ -32,7 +32,7 @@ def dynamic_slice(
     sizes: List[int],
 ) -> Tensor:
     slicing = [slice(start, start + size) for start, size in zip(starts, sizes)]
-    return x[slicing]
+    return x[tuple(slicing)]
 
 class AttnChunk(NamedTuple):
     exp_values: Tensor
@@ -241,11 +241,13 @@ def efficient_dot_product_attention(
     
     # TODO: maybe we should use torch.empty_like(query) to allocate storage in-advance,
     # and pass slices to be mutated, instead of torch.cat()ing the returned slices
-    res = torch.cat([
-        compute_query_chunk_attn(
-            query=get_query_chunk(i * query_chunk_size),
+    res = torch.empty((batch_x_heads, q_tokens, q_channels_per_head), dtype=query.dtype, device=query.device)
+    for i in range(math.ceil(q_tokens / query_chunk_size)):
+        start = i * query_chunk_size
+        end = min(start + query_chunk_size, q_tokens)
+        res[:, start:end, :] = compute_query_chunk_attn(
+            query=get_query_chunk(start),
             key_t=key_t,
             value=value,
-        ) for i in range(math.ceil(q_tokens / query_chunk_size))
-    ], dim=1)
+        )
     return res
