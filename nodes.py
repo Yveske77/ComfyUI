@@ -1416,11 +1416,13 @@ class LoadImage:
         for i in ImageSequence.Iterator(img):
             i = ImageOps.exif_transpose(i)
             image = i.convert("RGB")
-            image = np.array(image).astype(np.float32) / 255.0
-            image = torch.from_numpy(image)[None,]
+            image = np.array(image)
+            # Optimize: use in-place PyTorch operations to reduce memory usage and avoid intermediate float32 numpy arrays
+            image = torch.from_numpy(image).float().div_(255.0)[None,]
             if 'A' in i.getbands():
-                mask = np.array(i.getchannel('A')).astype(np.float32) / 255.0
-                mask = 1. - torch.from_numpy(mask)
+                mask = np.array(i.getchannel('A'))
+                # Optimize: use in-place PyTorch operations
+                mask = 1. - torch.from_numpy(mask).float().div_(255.0)
             else:
                 mask = torch.zeros((64,64), dtype=torch.float32, device="cpu")
             output_images.append(image)
@@ -1474,8 +1476,9 @@ class LoadImageMask:
         mask = None
         c = channel[0].upper()
         if c in i.getbands():
-            mask = np.array(i.getchannel(c)).astype(np.float32) / 255.0
-            mask = torch.from_numpy(mask)
+            mask = np.array(i.getchannel(c))
+            # Optimize: use in-place PyTorch operations to reduce memory usage
+            mask = torch.from_numpy(mask).float().div_(255.0)
             if c == 'A':
                 mask = 1. - mask
         else:
