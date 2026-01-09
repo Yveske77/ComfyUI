@@ -1001,8 +1001,14 @@ class Swin2SR(nn.Module):
             / embed_dim
         )
 
-        # TODO: could actually count the layers, but this should do
-        if "layers.0.conv.4.weight" in state_keys:
+        # Count the number of convolutional layers in the residual connection
+        # to determine if it is "1conv" or "3conv"
+        conv_layers = 0
+        for key in state_keys:
+            if key.startswith("layers.0.conv.") and key.endswith(".weight"):
+                conv_layers += 1
+
+        if conv_layers > 1:
             resi_connection = "3conv"
         else:
             resi_connection = "1conv"
