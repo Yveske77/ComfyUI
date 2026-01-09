@@ -374,7 +374,8 @@ def bislerp(samples, width, height):
 def lanczos(samples, width, height):
     images = [Image.fromarray(np.clip(255. * image.movedim(0, -1).cpu().numpy(), 0, 255).astype(np.uint8)) for image in samples]
     images = [image.resize((width, height), resample=Image.Resampling.LANCZOS) for image in images]
-    images = [torch.from_numpy(np.array(image).astype(np.float32) / 255.0).movedim(-1, 0) for image in images]
+    # Optimize: use in-place PyTorch operations to reduce memory usage and avoid intermediate float32 numpy arrays
+    images = [torch.from_numpy(np.array(image)).float().div_(255.0).movedim(-1, 0) for image in images]
     result = torch.stack(images)
     return result.to(samples.device, samples.dtype)
 
