@@ -1,0 +1,3 @@
+## 2024-05-23 - Vectorized Feathering in Samplers
+**Learning:** Python loops over tensor slices for simple arithmetic (like feathering edges) are not only slow but can be error-prone with negative indexing on small dimensions (wrapping bugs). Vectorizing with `torch.linspace` and `torch.flip` is cleaner, faster, and safer.
+**Action:** When seeing `for i in range(N): tensor[..., i, ...] *= factor`, immediately consider `tensor[..., :N, ...] *= linspace_tensor`. Ensure to clamp `N` to the tensor dimension to handle edge cases safely.
