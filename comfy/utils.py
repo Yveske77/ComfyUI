@@ -247,17 +247,17 @@ def resize_to_batch_size(tensor, batch_size):
     if batch_size <= 1:
         return tensor[:batch_size]
 
-    output = torch.empty([batch_size] + list(tensor.shape)[1:], dtype=tensor.dtype, device=tensor.device)
     if batch_size < in_batch_size:
-        scale = (in_batch_size - 1) / (batch_size - 1)
-        for i in range(batch_size):
-            output[i] = tensor[min(round(i * scale), in_batch_size - 1)]
+        indices = torch.linspace(0, in_batch_size - 1, batch_size, device=tensor.device)
+        indices = indices.round().long()
+        indices = indices.clamp(0, in_batch_size - 1)
+        return tensor[indices]
     else:
         scale = in_batch_size / batch_size
-        for i in range(batch_size):
-            output[i] = tensor[min(math.floor((i + 0.5) * scale), in_batch_size - 1)]
-
-    return output
+        indices = (torch.arange(batch_size, device=tensor.device) + 0.5) * scale
+        indices = indices.floor().long()
+        indices = indices.clamp(0, in_batch_size - 1)
+        return tensor[indices]
 
 def convert_sd_to(state_dict, dtype):
     keys = list(state_dict.keys())
