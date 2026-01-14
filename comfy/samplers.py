@@ -44,18 +44,24 @@ def get_area_and_mult(conds, x_in, timestep_in):
 
     if 'mask' not in conds:
         rr = 8
+        ramp = torch.linspace(1.0/rr, 1.0, rr, device=mult.device, dtype=mult.dtype)
+        h, w = mult.shape[2], mult.shape[3]
         if area[2] != 0:
-            for t in range(rr):
-                mult[:,:,t:1+t,:] *= ((1.0/rr) * (t + 1))
+            t_len = min(h, rr)
+            if t_len > 0:
+                mult[:,:,:t_len,:] *= ramp[:t_len].view(1, 1, -1, 1)
         if (area[0] + area[2]) < x_in.shape[2]:
-            for t in range(rr):
-                mult[:,:,area[0] - 1 - t:area[0] - t,:] *= ((1.0/rr) * (t + 1))
+            t_len = min(h, rr)
+            if t_len > 0:
+                mult[:,:,-t_len:,:] *= torch.flip(ramp[:t_len], [0]).view(1, 1, -1, 1)
         if area[3] != 0:
-            for t in range(rr):
-                mult[:,:,:,t:1+t] *= ((1.0/rr) * (t + 1))
+            t_len = min(w, rr)
+            if t_len > 0:
+                mult[:,:,:,:t_len] *= ramp[:t_len].view(1, 1, 1, -1)
         if (area[1] + area[3]) < x_in.shape[3]:
-            for t in range(rr):
-                mult[:,:,:,area[1] - 1 - t:area[1] - t] *= ((1.0/rr) * (t + 1))
+            t_len = min(w, rr)
+            if t_len > 0:
+                mult[:,:,:,-t_len:] *= torch.flip(ramp[:t_len], [0]).view(1, 1, 1, -1)
 
     conditioning = {}
     model_conds = conds["model_conds"]
