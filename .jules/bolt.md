@@ -1,0 +1,3 @@
+## 2025-02-19 - Vectorized Batch Resizing Trade-offs
+**Learning:** Replacing Python loops with vectorized `torch.index_select` for resizing batch dimensions yields massive speedups (~3x-4x) for small/medium tensors (e.g., latents `(4, 4, 64, 64)`), which are critical for model generation loops. However, on CPU, it incurs a slight (~20%) regression for very large single-image resize operations (e.g., `(1, 3, 1024, 1024)`), possibly due to overhead of index tensor allocation vs contiguous memory copy.
+**Action:** Prefer vectorized operations for frequent, small-batch manipulations typical in diffusion model internals. For large, one-off image manipulations, accept the slight regression or consider specialized kernels if critical.
