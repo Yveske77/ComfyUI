@@ -412,6 +412,7 @@ def tiled_scale(samples, function, tile_x=64, tile_y=64, overlap = 8, upscale_am
     feather = round(overlap * upscale_amount)
     inv_feather = 1.0 / feather
     grad = torch.arange(1, feather + 1, dtype=torch.float32, device=output_device).mul_(inv_feather)
+    mask_cache = {}
 
     for b in range(samples.shape[0]):
         s = samples[b:b+1]
@@ -422,21 +423,23 @@ def tiled_scale(samples, function, tile_x=64, tile_y=64, overlap = 8, upscale_am
                 s_in = s[:,:,y:y+tile_y,x:x+tile_x]
 
                 ps = function(s_in).to(output_device)
-                mask = torch.ones_like(ps)
+                h, w = ps.shape[2], ps.shape[3]
+                mask = mask_cache.get((h, w))
+                if mask is None:
+                    mask = torch.ones_like(ps)
 
-                h, w = mask.shape[2], mask.shape[3]
+                    t_len_h = min(h, feather)
+                    if t_len_h > 0:
+                        g = grad[:t_len_h].view(1, 1, -1, 1)
+                        mask[:, :, :t_len_h, :] *= g
+                        mask[:, :, -t_len_h:, :] *= g.flip(2)
 
-                t_len_h = min(h, feather)
-                if t_len_h > 0:
-                    g = grad[:t_len_h].view(1, 1, -1, 1)
-                    mask[:, :, :t_len_h, :] *= g
-                    mask[:, :, -t_len_h:, :] *= g.flip(2)
-
-                t_len_w = min(w, feather)
-                if t_len_w > 0:
-                    g = grad[:t_len_w].view(1, 1, 1, -1)
-                    mask[:, :, :, :t_len_w] *= g
-                    mask[:, :, :, -t_len_w:] *= g.flip(3)
+                    t_len_w = min(w, feather)
+                    if t_len_w > 0:
+                        g = grad[:t_len_w].view(1, 1, 1, -1)
+                        mask[:, :, :, :t_len_w] *= g
+                        mask[:, :, :, -t_len_w:] *= g.flip(3)
+                    mask_cache[(h, w)] = mask
 
                 out[:,:,round(y*upscale_amount):round((y+tile_y)*upscale_amount),round(x*upscale_amount):round((x+tile_x)*upscale_amount)] += ps * mask
                 out_div[:,:,round(y*upscale_amount):round((y+tile_y)*upscale_amount),round(x*upscale_amount):round((x+tile_x)*upscale_amount)] += mask
