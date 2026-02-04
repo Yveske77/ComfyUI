@@ -1649,29 +1649,29 @@ class ImagePadForOutpaint:
 
         t = torch.zeros(
             (d2, d3),
-            dtype=torch.float32
+            dtype=torch.float32,
         )
 
         if feathering > 0 and feathering * 2 < d2 and feathering * 2 < d3:
+            # Optimize: Use vectorized operations instead of nested loops
+            i = torch.arange(d2, dtype=torch.float32, device=image.device).view(-1, 1).expand(d2, d3)
+            j = torch.arange(d3, dtype=torch.float32, device=image.device).view(1, -1).expand(d2, d3)
 
-            for i in range(d2):
-                for j in range(d3):
-                    dt = i if top != 0 else d2
-                    db = d2 - i if bottom != 0 else d2
+            dt = i if top != 0 else torch.full_like(i, d2)
+            db = (d2 - i) if bottom != 0 else torch.full_like(i, d2)
 
-                    dl = j if left != 0 else d3
-                    dr = d3 - j if right != 0 else d3
+            dl = j if left != 0 else torch.full_like(j, d3)
+            dr = (d3 - j) if right != 0 else torch.full_like(j, d3)
 
-                    d = min(dt, db, dl, dr)
+            d = torch.min(dt, db)
+            d = torch.min(d, dl)
+            d = torch.min(d, dr)
 
-                    if d >= feathering:
-                        continue
+            v = (feathering - d) / feathering
+            v = torch.clamp(v, min=0)
+            t = v * v
 
-                    v = (feathering - d) / feathering
-
-                    t[i, j] = v * v
-
-        mask[top:top + d2, left:left + d3] = t
+        mask[top:top + d2, left:left + d3] = t.cpu()
 
         return (new_image, mask)
 
