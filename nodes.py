@@ -1653,23 +1653,21 @@ class ImagePadForOutpaint:
         )
 
         if feathering > 0 and feathering * 2 < d2 and feathering * 2 < d3:
+            # Vectorized distance calculation for feathering
+            i_coords = torch.arange(d2, dtype=torch.float32, device=t.device)
+            j_coords = torch.arange(d3, dtype=torch.float32, device=t.device)
 
-            for i in range(d2):
-                for j in range(d3):
-                    dt = i if top != 0 else d2
-                    db = d2 - i if bottom != 0 else d2
+            dt = i_coords.unsqueeze(1) if top != 0 else torch.full((d2, 1), d2, dtype=torch.float32, device=t.device)
+            db = (d2 - i_coords).unsqueeze(1) if bottom != 0 else torch.full((d2, 1), d2, dtype=torch.float32, device=t.device)
 
-                    dl = j if left != 0 else d3
-                    dr = d3 - j if right != 0 else d3
+            dl = j_coords.unsqueeze(0) if left != 0 else torch.full((1, d3), d3, dtype=torch.float32, device=t.device)
+            dr = (d3 - j_coords).unsqueeze(0) if right != 0 else torch.full((1, d3), d3, dtype=torch.float32, device=t.device)
 
-                    d = min(dt, db, dl, dr)
+            d = torch.min(torch.min(dt, db), torch.min(dl, dr))
 
-                    if d >= feathering:
-                        continue
-
-                    v = (feathering - d) / feathering
-
-                    t[i, j] = v * v
+            mask_feather = d < feathering
+            v = (feathering - d[mask_feather]) / feathering
+            t[mask_feather] = v * v
 
         mask[top:top + d2, left:left + d3] = t
 
